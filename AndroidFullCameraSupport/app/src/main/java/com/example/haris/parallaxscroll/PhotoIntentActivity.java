@@ -20,6 +20,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.v4.content.FileProvider;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -83,11 +84,23 @@ public class PhotoIntentActivity extends Activity {
 
 	private File createImageFile() throws IOException {
 		// Create an image file name
-		String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-		String imageFileName = JPEG_FILE_PREFIX + timeStamp + "_";
+		String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
 		File albumF = getAlbumDir();
-		File imageF = File.createTempFile(imageFileName, JPEG_FILE_SUFFIX, albumF);
-		return imageF;
+		File image = File.createTempFile(
+				imageFileName,  /* prefix */
+				".jpg"          /* suffix */,
+				albumF
+		);
+
+		String folderPath = Environment.getExternalStorageDirectory() + "/Inspection";
+		File folder = new File(folderPath);
+		if (!folder.exists()) {
+			File inspectionDir = new File(folderPath);
+			inspectionDir.mkdirs();
+		}
+		Log.d(PhotoIntentActivity.class.getSimpleName(), image.getPath().toString());
+		//create a new file
+		return new File(folderPath, image.getName());
 	}
 
 	private File setUpPhotoFile() throws IOException {
@@ -138,12 +151,18 @@ public class PhotoIntentActivity extends Activity {
 	private void galleryAddPic() {
 		    Intent mediaScanIntent = new Intent("android.intent.action.MEDIA_SCANNER_SCAN_FILE");
 			File f = new File(mCurrentPhotoPath);
-		    Uri contentUri = Uri.fromFile(f); //FileProvider.getUriForFile(PhotoIntentActivity.this, "com.example.haris.parallaxscroll.fileprovider", f);  <-- OM DET ÄR ÖVER LOLLIPOP?
-		    mediaScanIntent.setData(contentUri);
+		    Uri contentUri = getUriForFile(f);
+			mediaScanIntent.setData(contentUri);
 		    this.sendBroadcast(mediaScanIntent);
 	}
 
-
+	private Uri getUriForFile(File file){
+		if(Build.VERSION.SDK_INT <=  Build.VERSION_CODES.LOLLIPOP_MR1){
+			return Uri.fromFile(file); // API 22 and below doesn't have any restriction on URI, just get it!
+		} else {
+			return FileProvider.getUriForFile(PhotoIntentActivity.this, "com.example.haris.parallaxscroll.fileprovider", file); // API 24 and above need fileprovider
+		}
+	}
 
 	private void dispatchTakePictureIntent(int actionCode) {
 
@@ -156,7 +175,7 @@ public class PhotoIntentActivity extends Activity {
 			try {
 				f = setUpPhotoFile();
 				mCurrentPhotoPath = f.getAbsolutePath();
-				takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(f)); //FileProvider.getUriForFile(PhotoIntentActivity.this, "com.example.haris.parallaxscroll.fileprovider", f); <-- OM DET ÄR ÖVER LOLLIPOP?
+				takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, getUriForFile(f)); //FileProvider.getUriForFile(PhotoIntentActivity.this, "com.example.haris.parallaxscroll.fileprovider", f); <-- OM DET ÄR ÖVER LOLLIPOP?
 			} catch (IOException e) {
 				e.printStackTrace();
 				f = null;
